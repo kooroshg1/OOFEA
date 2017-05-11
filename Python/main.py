@@ -81,7 +81,7 @@ class ELEMENT(ELEMENT_1D):
     def calculate_stiffness(self):
         if self.type == 'TRUSS':
             self.stiffness_matrix = np.matrix([[1, -1],[-1, 1]])
-            self.stiffness_matrix = self.property_list['YOUNG'] * self.property_list['CROSS_A'] / self.length * self.stiffness_matrix
+            self.stiffness_matrix = self.property_list['YOUNG'] * self.property_list['AREA'] / self.length * self.stiffness_matrix
             R = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0.],
                            [0., 0., 0., self.alpha, self.beta, self.gamma]])
             self.stiffness_matrix = R.T * self.stiffness_matrix * R
@@ -99,17 +99,12 @@ class MODEL():
         matrix = [float(x) for x in matrix]
         self.stiffness_matrix += sps.coo_matrix((matrix, (rows, columns)), shape=self.stiffness_matrix.shape)
 
+    def add_rhs(self):
+        return None
+
 
 mesh = DOMAIN('sample.inp')
 fea = MODEL(mesh)
-
-# data = np.matrix([[1, 2], [3, 1]])
-# rows = [1, 2, 3, 1]
-# columns = [1, 2, 3, 4]
-# data = data.reshape(-1, 1)
-# data =
-# print data
-# mat = sps.coo_matrix((data, (rows, columns)))
 
 output = open('matrix.txt', 'w')
 for el in mesh.element:
@@ -127,7 +122,7 @@ for el in mesh.element:
     if element_type == 'TRUSS':
         property_list['YOUNG'] = mesh.material[material_id][0]
         property_list['DENSITY'] = mesh.property[material_id][1]
-        property_list['CROSS_A'] = mesh.property[property_id][1]
+        property_list['AREA'] = mesh.property[property_id][1]
 
     element = ELEMENT(node_list, element_type, property_list)
     element.calculate_stiffness()
