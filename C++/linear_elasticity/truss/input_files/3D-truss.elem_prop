@@ -1,0 +1,12 @@
+# The $Material card defines the material
+# For each material card:
+# SUB_DOMAIN_ID, VALUE, ENABLE_SENSITIVITY
+$isotropicMaterial
+1
+1 1.e0 1. 0.
+# The $Element card defines element properties
+# For each element card:
+# SUB_DOMAIN_ID, CROSS_SECTIONAL_AREA, ENABLE_SENSITIVITY
+$trussElement
+1
+1 1. 1

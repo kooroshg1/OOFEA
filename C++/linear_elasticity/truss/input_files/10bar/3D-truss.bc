@@ -1,0 +1,14 @@
+$DisplacementBoundary
+6
+1 3
+2 3
+3 3
+4 3
+5 123
+6 123
+$EndDisplacementBoundary
+$ForceBoundary
+2
+4 0. -1.e05 0.
+2 0. -1.e05 0.
+$EndForceBoundary

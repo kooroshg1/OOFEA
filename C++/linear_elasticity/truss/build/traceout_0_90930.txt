@@ -1,0 +1,11 @@
+Stack frames: 10
+0: 0   libmesh_opt.0.dylib                 0x0000000101897a85 libMesh::print_trace(std::__1::basic_ostream<char, std::__1::char_traits<char> >&) + 1509
+1: 1   libmesh_opt.0.dylib                 0x000000010189864e libMesh::write_traceout() + 670
+2: 2   libmesh_opt.0.dylib                 0x0000000101883bcb libMesh::libmesh_terminate_handler() + 11
+3: 3   libc++abi.dylib                     0x00007fff92a4fd69 _ZSt11__terminatePFvvE + 8
+4: 4   libc++abi.dylib                     0x00007fff92a4f7de _ZN10__cxxabiv1L22exception_cleanup_funcE19_Unwind_Reason_CodeP17_Unwind_Exception + 0
+5: 5   libmesh_opt.0.dylib                 0x0000000101bfd87d libMesh::GmshIO::read_mesh(std::__1::basic_istream<char, std::__1::char_traits<char> >&) + 12109
+6: 6   libmesh_opt.0.dylib                 0x0000000101bfa86f libMesh::GmshIO::read(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 255
+7: 7   vulcan                              0x00000001017a56d7 main + 2647
+8: 8   libdyld.dylib                       0x00007fff93e3c255 start + 1
+9: 9   ???                                 0x0000000000000001 0x0 + 1

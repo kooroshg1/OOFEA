@@ -1,0 +1,3 @@
+/Users/gobalk/Work/vulcan/working_versions/linear_elasticity/truss/build/CMakeFiles/rebuild_cache.dir
+/Users/gobalk/Work/vulcan/working_versions/linear_elasticity/truss/build/CMakeFiles/edit_cache.dir
+/Users/gobalk/Work/vulcan/working_versions/linear_elasticity/truss/build/CMakeFiles/vulcan.dir
