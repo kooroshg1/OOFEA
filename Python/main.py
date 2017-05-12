@@ -7,7 +7,7 @@ class DOMAIN():
         self.read_mesh()
 
     def read_mesh(self):
-        self.dimension = 3
+        self.dimension = 7
         with open(self.input_file_path, 'r') as input_file:
             self.node = dict()
             self.element = dict()
@@ -40,7 +40,7 @@ class DOMAIN():
 
 class ELEMENT_BASE():
     def __init__(self):
-        self.dim = None
+        self.dimension = 7
         self.node_list = None
         self.type = None
         self.property_list = None
@@ -49,12 +49,12 @@ class ELEMENT_BASE():
     def get_nodal_degree_of_freedom(self):
         self.nodal_degree_of_freedom = []
         for node_number in self.node_list:
-            for dof in range(0, self.dim):
-                self.nodal_degree_of_freedom.append(self.dim * node_number + dof)
+            for dof in range(0, 7):
+                self.nodal_degree_of_freedom.append(self.dimension * node_number + dof)
 
 class ELEMENT_1D(ELEMENT_BASE):
     def __init__(self):
-        self.dim = None
+        self.dimension = None
         self.node_list = None
         self.type = None
         self.property_list = None
@@ -69,9 +69,27 @@ class ELEMENT_1D(ELEMENT_BASE):
         self.beta = (self.node_list[self.node_list.keys()[1]][1] - self.node_list[self.node_list.keys()[0]][1]) / self.length
         self.gamma = (self.node_list[self.node_list.keys()[1]][2] - self.node_list[self.node_list.keys()[0]][2]) / self.length
 
-class ELEMENT(ELEMENT_1D):
+class TRUSS(ELEMENT_1D):
+    def __init__(self, node_list, property_list):
+        self.dimension = 7
+        self.node_list = node_list
+        self.type = element_type
+        self.property_list = property_list
+        self.calculate_length()
+        self.calculate_orientation()
+        self.calculate_stiffness()
+
+    def calculate_stiffness(self):
+        self.stiffness_matrix = np.matrix([[1, -1], [-1, 1]])
+        self.stiffness_matrix = self.property_list['YOUNG'] * self.property_list[
+            'AREA'] / self.length * self.stiffness_matrix
+        R = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                       [0., 0., 0., 0., 0., 0., 0., self.alpha, self.beta, self.gamma, 0., 0., 0., 0.]])
+        self.stiffness_matrix = R.T * self.stiffness_matrix * R
+
+class ELEMENT(TRUSS):
     def __init__(self, node_list, element_type, property_list):
-        self.dim = 3
+        self.dimension = 7
         self.node_list = node_list
         self.type = element_type
         self.property_list = property_list
@@ -80,11 +98,11 @@ class ELEMENT(ELEMENT_1D):
 
     def calculate_stiffness(self):
         if self.type == 'TRUSS':
-            self.stiffness_matrix = np.matrix([[1, -1],[-1, 1]])
-            self.stiffness_matrix = self.property_list['YOUNG'] * self.property_list['AREA'] / self.length * self.stiffness_matrix
-            R = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0.],
-                           [0., 0., 0., self.alpha, self.beta, self.gamma]])
-            self.stiffness_matrix = R.T * self.stiffness_matrix * R
+            truss = TRUSS(self.node_list, self.property_list)
+            self.stiffness_matrix = truss.stiffness_matrix
+        elif self.type == 'BEAM':
+            truss = TRUSS(self.node_list, self.property_list)
+            self.stiffness_matrix = truss.stiffness_matrix
 
 class MODEL():
     def __init__(self, mesh):
@@ -109,8 +127,7 @@ fea = MODEL(mesh)
 output = open('matrix.txt', 'w')
 for el in mesh.element:
     property_id = mesh.element[el][0]
-    material_id = mesh.property[property_id][2]
-
+    material_id = mesh.property[property_id][1]
     element_type = mesh.property[mesh.element[el][0]][0]
 
     node_list = dict()
@@ -121,8 +138,21 @@ for el in mesh.element:
 
     if element_type == 'TRUSS':
         property_list['YOUNG'] = mesh.material[material_id][0]
-        property_list['DENSITY'] = mesh.property[material_id][1]
-        property_list['AREA'] = mesh.property[property_id][1]
+        property_list['DENSITY'] = mesh.material[material_id][1]
+        property_list['AREA'] = mesh.property[property_id][2]
+    elif element_type == 'BEAM':
+        property_list['YOUNG'] = mesh.material[material_id][0]
+        property_list['DENSITY'] = mesh.material[material_id][1]
+        property_list['AREA'] = mesh.property[property_id][2]
+        property_list['IXX'] = mesh.property[property_id][3]
+        property_list['IXY'] = mesh.property[property_id][4]
+        property_list['IXZ'] = mesh.property[property_id][5]
+        property_list['IYX'] = mesh.property[property_id][6]
+        property_list['IYY'] = mesh.property[property_id][7]
+        property_list['IYZ'] = mesh.property[property_id][8]
+        property_list['IZX'] = mesh.property[property_id][9]
+        property_list['IZY'] = mesh.property[property_id][10]
+        property_list['IZZ'] = mesh.property[property_id][11]
 
     element = ELEMENT(node_list, element_type, property_list)
     element.calculate_stiffness()
@@ -133,7 +163,7 @@ for el in mesh.element:
     np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
     output.write('\n')
 
-np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%12.4E')
+np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
 output.close()
 
 
