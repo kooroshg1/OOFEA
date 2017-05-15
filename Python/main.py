@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sps
+import scipy.sparse.linalg as spsol
 
 class DOMAIN():
     def __init__(self, input_file_path):
@@ -13,6 +14,9 @@ class DOMAIN():
             self.element = dict()
             self.property = dict()
             self.material = dict()
+            self.boundary_condition = dict()
+            self.node_set = dict()
+            self.element_set = dict()
             for line in input_file:
                 if line[0:4] == 'NODE':
                     line_split = line.split(',')
@@ -24,6 +28,16 @@ class DOMAIN():
                     self.element[int(line_split[1])] = []
                     for line_split_element in line_split[2:]:
                         self.element[int(line_split[1])].append(int(line_split_element))
+                elif line[0:4] == 'NSET':
+                    line_split = line.split(',')
+                    self.node_set[int(line_split[1])] = []
+                    for line_split_element in line_split[2:]:
+                        self.node_set[int(line_split[1])].append(int(line_split_element))
+                elif line[0:4] == 'ELSET':
+                    line_split = line.split(',')
+                    self.element_set[int(line_split[1])] = []
+                    for line_split_element in line_split[2:]:
+                        self.element_set[int(line_split[1])].append(int(line_split_element))
                 elif line[0:8] == 'PROPERTY':
                     line_split = line.split(',')
                     self.property[int(line_split[1])] = []
@@ -37,6 +51,18 @@ class DOMAIN():
                     self.material[int(line_split[1])] = []
                     for line_split_element in line_split[2:]:
                         self.material[int(line_split[1])].append(float(line_split_element))
+                elif line[0:12] == 'DISPLACEMENT':
+                    line_split = line.split(',')
+                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                elif line[0:8] == 'ROTATION':
+                    line_split = line.split(',')
+                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                elif line[0:5] == 'FORCE':
+                    line_split = line.split(',')
+                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                elif line[0:6] == 'MOMENT':
+                    line_split = line.split(',')
+                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
 
 class ELEMENT_BASE():
     def get_nodal_degree_of_freedom(self):
@@ -175,10 +201,15 @@ class ELEMENT(TRUSS, BEAM):
             beam = BEAM(self.node, self.property_list)
             self.stiffness_matrix = beam.stiffness_matrix
 
-class MODEL():
+class BOUNDARY_CONDITION():
+    def apply_displacement_boundary_condition(self):
+        print self.mesh.boundary_condition
+
+class MODEL(BOUNDARY_CONDITION):
     def __init__(self, mesh):
         self.mesh = mesh
         self.stiffness_matrix = sps.coo_matrix((len(self.mesh.node) * self.mesh.dimension, len(self.mesh.node) * self.mesh.dimension))
+        self.rhs = sps.coo_matrix((len(self.mesh.node) * self.mesh.dimension, 1))
 
     def add_matrix(self, matrix, dof):
         combinations = [(x, y) for x in dof for y in dof]
@@ -188,11 +219,23 @@ class MODEL():
         matrix = [float(x) for x in matrix]
         self.stiffness_matrix += sps.coo_matrix((matrix, (rows, columns)), shape=self.stiffness_matrix.shape)
 
-    def add_rhs(self):
-        return None
+    def add_rhs(self, vector, dof):
+        columns = [0 for y in dof]
+        rows = [x for x in dof]
+        vector = [float(x) for x in vector]
+        self.rhs += sps.coo_matrix((vector, (rows, columns)), shape=self.rhs.shape)
+
+    def solve(self):
+        self.solution = spsol.spsolve(self.stiffness_matrix, self.rhs)
+
+
+
+
 
 mesh = DOMAIN('sample.inp')
 fea = MODEL(mesh)
+print mesh.node_set
+# fea.apply_displacement_boundary_condition()
 
 output = open('matrix.txt', 'w')
 for el in mesh.element:
@@ -223,12 +266,15 @@ for el in mesh.element:
     element = ELEMENT(node, element_type, property_list)
 
     fea.add_matrix(element.stiffness_matrix, element.nodal_degree_of_freedom)
+    fea.add_rhs([100], [5])
 
     np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
     output.write('\n')
 
 np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
 output.close()
+
+# fea.solve()
 
 
 class vehicle():
