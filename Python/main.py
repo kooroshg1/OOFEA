@@ -7,7 +7,7 @@ class DOMAIN():
         self.read_mesh()
 
     def read_mesh(self):
-        self.dimension = 7
+        self.dimension = 6
         with open(self.input_file_path, 'r') as input_file:
             self.node = dict()
             self.element = dict()
@@ -39,70 +39,141 @@ class DOMAIN():
                         self.material[int(line_split[1])].append(float(line_split_element))
 
 class ELEMENT_BASE():
-    def __init__(self):
-        self.dimension = 7
-        self.node_list = None
-        self.type = None
-        self.property_list = None
-        self.nodal_degree_of_freedom = None
-
     def get_nodal_degree_of_freedom(self):
         self.nodal_degree_of_freedom = []
-        for node_number in self.node_list:
-            for dof in range(0, 7):
+        for node_number in self.node:
+            for dof in range(0, self.dimension):
                 self.nodal_degree_of_freedom.append(self.dimension * node_number + dof)
 
-class ELEMENT_1D(ELEMENT_BASE):
-    def __init__(self):
-        self.dimension = None
-        self.node_list = None
-        self.type = None
-        self.property_list = None
-
+class ELEMENT_1D_BASE(ELEMENT_BASE):
     def calculate_length(self):
-        self.length = np.sqrt((self.node_list[self.node_list.keys()[0]][0] - self.node_list[self.node_list.keys()[1]][0])**2.0 +
-                              (self.node_list[self.node_list.keys()[0]][1] - self.node_list[self.node_list.keys()[1]][1])**2.0 +
-                              (self.node_list[self.node_list.keys()[0]][2] - self.node_list[self.node_list.keys()[1]][2])**2.0)
+        self.length = np.sqrt((self.node[1][0] - self.node[0][0]) ** 2. +
+                              (self.node[1][1] - self.node[0][1]) ** 2. +
+                              (self.node[1][2] - self.node[0][2]) ** 2.)
 
-    def calculate_orientation(self):
-        self.alpha = (self.node_list[self.node_list.keys()[1]][0] - self.node_list[self.node_list.keys()[0]][0]) / self.length
-        self.beta = (self.node_list[self.node_list.keys()[1]][1] - self.node_list[self.node_list.keys()[0]][1]) / self.length
-        self.gamma = (self.node_list[self.node_list.keys()[1]][2] - self.node_list[self.node_list.keys()[0]][2]) / self.length
+    def calculate_direction_cosines(self):
+        self.alpha = (self.node[1][0] - self.node[0][0]) / self.length
+        self.beta = (self.node[1][1] - self.node[0][1]) / self.length
+        self.gamma = (self.node[1][2] - self.node[0][2]) / self.length
 
-class TRUSS(ELEMENT_1D):
-    def __init__(self, node_list, property_list):
-        self.dimension = 7
-        self.node_list = node_list
+    def calculate_transformation_matrix(self):
+        node[1][0] = self.node[1][0] - self.node[0][0]
+        node[1][1] = self.node[1][1] - self.node[0][1]
+        node[1][2] = self.node[1][2] - self.node[0][2]
+        node[0] = [0., 0., 0.]
+
+        L = np.sqrt((node[1][0] - node[0][0]) ** 2. +
+                    (node[1][1] - node[0][1]) ** 2. +
+                    (node[1][2] - node[0][2]) ** 2.)
+        x12 = np.sqrt(node[1][0] ** 2. + node[1][1] ** 2.)
+        x11 = np.sqrt(node[0][0] ** 2. + node[0][1] ** 2.)
+
+        cosAlpha = (node[1][0] - node[0][0]) / (x12 - x11)
+        sinAlpha = (node[1][1] - node[0][1]) / (x12 - x11)
+        cosBeta = (x12 - x11) / L
+        sinBeta = (node[1][2] - node[0][2]) / L
+
+        LAMBDA = np.matrix([[cosAlpha * cosBeta, sinAlpha, cosAlpha * sinBeta],
+                            [-sinAlpha * cosBeta, cosAlpha, -sinAlpha * sinBeta],
+                            [-sinBeta, 0., cosBeta]])
+
+        self.transformation_matrix = np.kron(np.eye(4, 4), LAMBDA)
+
+class TRUSS(ELEMENT_1D_BASE):
+    def __init__(self, node, property_list):
+        self.node = node
         self.type = element_type
         self.property_list = property_list
         self.calculate_length()
-        self.calculate_orientation()
+        self.calculate_direction_cosines()
         self.calculate_stiffness()
 
     def calculate_stiffness(self):
         self.stiffness_matrix = np.matrix([[1, -1], [-1, 1]])
         self.stiffness_matrix = self.property_list['YOUNG'] * self.property_list[
             'AREA'] / self.length * self.stiffness_matrix
-        R = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-                       [0., 0., 0., 0., 0., 0., 0., self.alpha, self.beta, self.gamma, 0., 0., 0., 0.]])
+        R = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                       [0., 0., 0., 0., 0., 0., self.alpha, self.beta, self.gamma, 0., 0., 0.]])
         self.stiffness_matrix = R.T * self.stiffness_matrix * R
 
-class ELEMENT(TRUSS):
-    def __init__(self, node_list, element_type, property_list):
-        self.dimension = 7
-        self.node_list = node_list
+class BEAM(ELEMENT_1D_BASE):
+    def __init__(self, node, properties):
+        self.node = node
+        self.properties = properties
+        self.calculate_length()
+        self.calculate_transformation_matrix()
+        self.calculate_local_element_stiffness_matrix()
+        self.calculate_global_element_stiffness_matrix()
+
+    def calculate_local_element_stiffness_matrix(self):
+        self.stiffness_matrix = np.zeros([12, 12])
+        self.E = self.properties['YOUNG']
+        self.G = self.properties['G']
+        self.area = self.properties['AREA']
+        self.Iy = self.properties['Iy']
+        self.Iz = self.properties['Iz']
+        self.J = self.properties['J']
+        self.a = self.length / 2.
+
+        self.stiffness_matrix[0, 0] = self.area * self.E / (2. * self.a)
+        self.stiffness_matrix[0, 6] = -self.area * self.E / (2. * self.a)
+
+        self.stiffness_matrix[1, 1] = 3 * self.E * self.Iz / (2. * self.a ** 3.)
+        self.stiffness_matrix[1, 5] = 3 * self.E * self.Iz / (2. * self.a ** 2.)
+        self.stiffness_matrix[1, 7] = -3 * self.E * self.Iz / (2. * self.a ** 3.)
+        self.stiffness_matrix[1, 11] = 3 * self.E * self.Iz / (2. * self.a ** 2.)
+
+        self.stiffness_matrix[2, 2] = 3 * self.E * self.Iy / (2. * self.a ** 3.)
+        self.stiffness_matrix[2, 4] = -3 * self.E * self.Iy / (2. * self.a ** 2.)
+        self.stiffness_matrix[2, 8] = -3 * self.E * self.Iy / (2. * self.a ** 3.)
+        self.stiffness_matrix[2, 10] = -3 * self.E * self.Iy / (2. * self.a ** 2.)
+
+        self.stiffness_matrix[3, 3] = self.G * self.J / (2. * self.a)
+        self.stiffness_matrix[3, 9] = -self.G * self.J / (2. * self.a)
+
+        self.stiffness_matrix[4, 4] = 2. * self.E * self.Iy / self.a
+        self.stiffness_matrix[4, 8] = 3. * self.E * self.Iy / (2. * self.a ** 2.)
+        self.stiffness_matrix[4, 10] = self.E * self.Iy / self.a
+
+        self.stiffness_matrix[5, 5] = 2. * self.E * self.Iz / self.a
+        self.stiffness_matrix[5, 7] = -3. * self.E * self.Iz / (2. * self.a ** 2.)
+        self.stiffness_matrix[5, 11] = self.E * self.Iz / self.a
+
+        self.stiffness_matrix[6, 6] = self.area * self.E / (2. * self.a)
+
+        self.stiffness_matrix[7, 7] = 3 * self.E * self.Iz / (2. * self.a ** 3.)
+        self.stiffness_matrix[7, 11] = -3 * self.E * self.Iz / (2. * self.a ** 2.)
+
+        self.stiffness_matrix[8, 8] = 3 * self.E * self.Iy / (2. * self.a ** 3.)
+        self.stiffness_matrix[8, 10] = 3 * self.E * self.Iy / (2. * self.a ** 2.)
+
+        self.stiffness_matrix[9, 9] = self.G * self.J / (2. * self.a ** 3.)
+
+        self.stiffness_matrix[10, 10] = 2 * self.E * self.Iy / self.a
+
+        self.stiffness_matrix[11, 11] = 2 * self.E * self.Iz / self.a
+
+        self.stiffness_matrix = self.stiffness_matrix + self.stiffness_matrix.T - np.diag(self.stiffness_matrix.diagonal())
+
+    def calculate_global_element_stiffness_matrix(self):
+        self.stiffness_matrix = self.transformation_matrix * self.stiffness_matrix
+
+class ELEMENT(TRUSS, BEAM):
+    def __init__(self, node, element_type, property_list):
+        self.dimension = 6
+        self.node = node
         self.type = element_type
         self.property_list = property_list
-        self.calculate_length()
-        self.calculate_orientation()
+        self.calculate_stiffness()
+        self.get_nodal_degree_of_freedom()
 
     def calculate_stiffness(self):
         if self.type == 'TRUSS':
-            truss = TRUSS(self.node_list, self.property_list)
+            truss = TRUSS(self.node, self.property_list)
             self.stiffness_matrix = truss.stiffness_matrix
         elif self.type == 'BEAM':
-            truss = TRUSS(self.node_list, self.property_list)
-            self.stiffness_matrix = truss.stiffness_matrix
+            beam = BEAM(self.node, self.property_list)
+            self.stiffness_matrix = beam.stiffness_matrix
 
 class MODEL():
     def __init__(self, mesh):
@@ -120,7 +191,6 @@ class MODEL():
     def add_rhs(self):
         return None
 
-
 mesh = DOMAIN('sample.inp')
 fea = MODEL(mesh)
 
@@ -130,11 +200,11 @@ for el in mesh.element:
     material_id = mesh.property[property_id][1]
     element_type = mesh.property[mesh.element[el][0]][0]
 
-    node_list = dict()
+    node = dict()
     property_list = dict()
 
-    for node in mesh.element[el][1:]:
-        node_list[node] = mesh.node[node]
+    for nd in mesh.element[el][1:]:
+        node[nd] = mesh.node[nd]
 
     if element_type == 'TRUSS':
         property_list['YOUNG'] = mesh.material[material_id][0]
@@ -142,21 +212,15 @@ for el in mesh.element:
         property_list['AREA'] = mesh.property[property_id][2]
     elif element_type == 'BEAM':
         property_list['YOUNG'] = mesh.material[material_id][0]
-        property_list['DENSITY'] = mesh.material[material_id][1]
+        property_list['G'] = mesh.material[material_id][1]
+        property_list['DENSITY'] = mesh.material[material_id][2]
         property_list['AREA'] = mesh.property[property_id][2]
-        property_list['IXX'] = mesh.property[property_id][3]
-        property_list['IXY'] = mesh.property[property_id][4]
-        property_list['IXZ'] = mesh.property[property_id][5]
-        property_list['IYX'] = mesh.property[property_id][6]
-        property_list['IYY'] = mesh.property[property_id][7]
-        property_list['IYZ'] = mesh.property[property_id][8]
-        property_list['IZX'] = mesh.property[property_id][9]
-        property_list['IZY'] = mesh.property[property_id][10]
-        property_list['IZZ'] = mesh.property[property_id][11]
+        property_list['J'] = mesh.property[property_id][3]
+        property_list['Ix'] = mesh.property[property_id][4]
+        property_list['Iy'] = mesh.property[property_id][5]
+        property_list['Iz'] = mesh.property[property_id][6]
 
-    element = ELEMENT(node_list, element_type, property_list)
-    element.calculate_stiffness()
-    element.get_nodal_degree_of_freedom()
+    element = ELEMENT(node, element_type, property_list)
 
     fea.add_matrix(element.stiffness_matrix, element.nodal_degree_of_freedom)
 
@@ -187,71 +251,3 @@ class car(vehicle):
         self.value = value
         self.is_second = is_second
         self.sold = sold
-
-# class ELEMENT(ORIENTATION):
-#     def __init__(self, node_list, quadrature_rule=1):
-#         self.node = node_list
-#         self.number_of_nodes = len(node_list)
-#         self.quadrature_rule = quadrature_rule
-#         self.calculate_jacobian()
-#         self.get_quadrature_points()
-#         self.get_shape_functions()
-#         self.get_shape_functions_derivative()
-#         self.get_shape_function_at_quadrature_points()
-#         self.get_shape_function_derivative_at_quadrature_points()
-#         self.calculate_local_element_stiffness_matrix()
-#         self.calculate_orientation()
-#         self.calculate_global_element_stiffness_matrix()
-#
-#
-#     def calculate_jacobian(self):
-#         self.jacobian = np.sqrt(((self.node[1].x - self.node[0].x) / 2.)**2. + \
-#                                 ((self.node[1].y - self.node[0].y) / 2.)**2. + \
-#                                 ((self.node[1].z - self.node[0].z) / 2.)**2.)
-#
-#     def get_quadrature_points(self):
-#         if (self.number_of_nodes == 2):
-#             self.quadrature_points = [-np.sqrt(1. / 3.), np.sqrt(1. / 3.)]
-#             self.quadrature_points_weight = [1., 1.]
-#
-#     def get_shape_functions(self):
-#         if (self.number_of_nodes == 2):
-#             self.shape_functions = [lambda zeta: (1. - zeta) / 2.,
-#                                     lambda zeta: (1. + zeta) / 2.]
-#
-#     def get_shape_functions_derivative(self):
-#         if (self.number_of_nodes == 2):
-#             self.shape_functions_derivative = [lambda zeta: -1. / 2.,
-#                                                lambda zeta: 1. / 2.]
-#
-#     def get_shape_function_at_quadrature_points(self):
-#         if (self.number_of_nodes == 2):
-#             self.shape_functions_at_quadrature_points = np.matrix([[self.shape_functions[0](self.quadrature_points[0]),
-#                                                                     self.shape_functions[1](self.quadrature_points[0])],
-#                                                                    [self.shape_functions[0](self.quadrature_points[1]),
-#                                                                     self.shape_functions[1](self.quadrature_points[1])]])
-#
-#     def get_shape_function_derivative_at_quadrature_points(self):
-#         if (self.number_of_nodes == 2):
-#             self.shape_functions_derivative_at_quadrature_points = np.matrix([[self.shape_functions_derivative[0](self.quadrature_points[0]),
-#                                                                                self.shape_functions_derivative[1](self.quadrature_points[0])],
-#                                                                               [self.shape_functions_derivative[0](self.quadrature_points[1]),
-#                                                                                self.shape_functions_derivative[1](self.quadrature_points[1])]])
-#
-#     def calculate_local_element_stiffness_matrix(self):
-#         self.local_element_stiffness_matrix = np.zeros([2, 2])
-#         for i_quadrature_points in range(0, len(self.quadrature_points)):
-#             for i_shape_function in range(0, len(self.shape_functions)):
-#                 for j_shape_function in range(0, len(self.shape_functions)):
-#                     self.local_element_stiffness_matrix[i_shape_function, j_shape_function] += \
-#                                                                                                self.shape_functions_derivative_at_quadrature_points[i_quadrature_points, i_shape_function] * \
-#                                                                                                self.shape_functions_derivative_at_quadrature_points[i_quadrature_points, j_shape_function] * \
-#                                                                                                1. / self.jacobian * \
-#                                                                                                self.quadrature_points_weight[i_quadrature_points]
-#
-#     def calculate_global_element_stiffness_matrix(self):
-#         rotation_matrix = np.matrix([[self.alpha, self.beta, self.gamma, 0., 0., 0.],
-#                                      [0., 0., 0., self.alpha, self.beta, self.gamma]])
-#         self.global_element_stiffness_matrix = rotation_matrix.T * \
-#                                                self.local_element_stiffness_matrix * \
-#                                                rotation_matrix
