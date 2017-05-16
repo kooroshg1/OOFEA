@@ -14,7 +14,10 @@ class DOMAIN():
             self.element = dict()
             self.property = dict()
             self.material = dict()
-            self.boundary_condition = dict()
+            self.displacement_boundary_condition = []
+            self.rotation_boundary_condition = []
+            self.force_boundary_condition = []
+            self.moment_boundary_condition = []
             self.node_set = dict()
             self.element_set = dict()
             for line in input_file:
@@ -53,25 +56,38 @@ class DOMAIN():
                         self.material[int(line_split[1])].append(float(line_split_element))
                 elif line[0:12] == 'DISPLACEMENT':
                     line_split = line.split(',')
-                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                    self.displacement_boundary_condition.append(BOUNDARY_CONDITION())
+                    self.displacement_boundary_condition[-1].add_displacement_boundary_condition(int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4]))
                 elif line[0:8] == 'ROTATION':
                     line_split = line.split(',')
-                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                    self.rotation_boundary_condition.append(BOUNDARY_CONDITION())
+                    self.rotation_boundary_condition[-1].add_rotation_boundary_condition(int(line_split[1]),
+                                                                                         float(line_split[2]),
+                                                                                         float(line_split[3]),
+                                                                                         float(line_split[4]))
                 elif line[0:5] == 'FORCE':
                     line_split = line.split(',')
-                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                    self.force_boundary_condition.append(BOUNDARY_CONDITION())
+                    self.force_boundary_condition[-1].add_force_boundary_condition(int(line_split[1]),
+                                                                                   float(line_split[2]),
+                                                                                   float(line_split[3]),
+                                                                                   float(line_split[4]))
                 elif line[0:6] == 'MOMENT':
                     line_split = line.split(',')
-                    self.boundary_condition[line_split[0]] = [int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4])]
+                    self.moment_boundary_condition.append(BOUNDARY_CONDITION())
+                    self.moment_boundary_condition[-1].add_moment_boundary_condition(int(line_split[1]),
+                                                                                     float(line_split[2]),
+                                                                                     float(line_split[3]),
+                                                                                     float(line_split[4]))
 
-class ELEMENT_BASE():
+class NODE_BASE():
     def get_nodal_degree_of_freedom(self):
         self.nodal_degree_of_freedom = []
         for node_number in self.node:
             for dof in range(0, self.dimension):
                 self.nodal_degree_of_freedom.append(self.dimension * node_number + dof)
 
-class ELEMENT_1D_BASE(ELEMENT_BASE):
+class ELEMENT_1D_BASE(NODE_BASE):
     def calculate_length(self):
         self.length = np.sqrt((self.node[1][0] - self.node[0][0]) ** 2. +
                               (self.node[1][1] - self.node[0][1]) ** 2. +
@@ -201,9 +217,57 @@ class ELEMENT(TRUSS, BEAM):
             beam = BEAM(self.node, self.property_list)
             self.stiffness_matrix = beam.stiffness_matrix
 
-class BOUNDARY_CONDITION():
+class BOUNDARY_CONDITION_BASE():
+    def __init__(self):
+        self.node_set = None
+        self.disp_x = None
+        self.disp_y = None
+        self.disp_z = None
+        self.rot_x = None
+        self.rot_y = None
+        self.rot_z = None
+        self.F_x = None
+        self.F_y = None
+        self.F_z = None
+        self.M_x = None
+        self.M_y = None
+        self.M_z = None
+
+class BOUNDARY_CONDITION(BOUNDARY_CONDITION_BASE):
+    def add_displacement_boundary_condition(self, node_set, disp_x, disp_y, disp_z):
+        self.node_set = node_set
+        self.disp_x = disp_x
+        self.disp_y = disp_y
+        self.disp_z = disp_z
+
+    def add_rotation_boundary_condition(self, node_set, rot_x, rot_y, rot_z):
+        self.node_set = node_set
+        self.rot_x = rot_x
+        self.rot_y = rot_y
+        self.rot_z = rot_z
+
+    def add_force_boundary_condition(self, node_set, F_x, F_y, F_z):
+        self.node_set = node_set
+        self.F_x = F_x
+        self.F_y = F_y
+        self.F_z = F_z
+
+    def add_moment_boundary_condition(self, node_set, M_x, M_y, M_z):
+        self.node_set = node_set
+        self.M_x = M_x
+        self.M_y = M_y
+        self.M_z = M_z
+
     def apply_displacement_boundary_condition(self):
-        print self.mesh.boundary_condition
+        for bc in mesh.displacement_boundary_condition:
+            for node in mesh.node_set[bc.node_set]:
+                dof = [0, 1, 2]
+                self.dof = [i + node * 6 for i in dof]
+                self.penalty = [1e20, 1e20, 1e20]
+                self.displacement_value = [bc.disp_x, bc.disp_y, bc.disp_z]
+                self.stiffness_matrix += sps.coo_matrix((self.penalty, (self.dof, self.dof)), shape=self.stiffness_matrix.shape)
+                self.rhs = sps.coo_matrix((self.displacement_value, (self.dof, self.dof)), shape=self.stiffness_matrix.shape)
+
 
 class MODEL(BOUNDARY_CONDITION):
     def __init__(self, mesh):
@@ -230,11 +294,10 @@ class MODEL(BOUNDARY_CONDITION):
 
 
 
-
-
 mesh = DOMAIN('sample.inp')
 fea = MODEL(mesh)
-print mesh.node_set
+# bc = BOUNDARY_CONDITION(mesh)
+# bc.apply_displacement_boundary_condition()
 # fea.apply_displacement_boundary_condition()
 
 output = open('matrix.txt', 'w')
@@ -271,6 +334,7 @@ for el in mesh.element:
     np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
     output.write('\n')
 
+fea.apply_displacement_boundary_condition()
 np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
 output.close()
 
