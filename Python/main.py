@@ -80,6 +80,13 @@ class DOMAIN():
                                                                                      float(line_split[3]),
                                                                                      float(line_split[4]))
 
+                elif line[0:7] == 'AUTOSPC':
+                    line_split = line.split(',')
+                    if line_split[1] == 'ON\n':
+                        self.AUTOSPC = True
+                    else:
+                        self.AUTOSPC = False
+
 class NODE_BASE():
     def get_nodal_degree_of_freedom(self):
         self.nodal_degree_of_freedom = []
@@ -232,6 +239,7 @@ class BOUNDARY_CONDITION_BASE():
         self.M_x = None
         self.M_y = None
         self.M_z = None
+        self.AUTOSPC = None
 
 class BOUNDARY_CONDITION(BOUNDARY_CONDITION_BASE):
     def add_displacement_boundary_condition(self, node_set, disp_x, disp_y, disp_z):
@@ -263,11 +271,46 @@ class BOUNDARY_CONDITION(BOUNDARY_CONDITION_BASE):
             for node in mesh.node_set[bc.node_set]:
                 dof = [0, 1, 2]
                 self.dof = [i + node * 6 for i in dof]
+                self.colomns = [0 for i in dof]
                 self.penalty = [1e20, 1e20, 1e20]
                 self.displacement_value = [bc.disp_x, bc.disp_y, bc.disp_z]
                 self.stiffness_matrix += sps.coo_matrix((self.penalty, (self.dof, self.dof)), shape=self.stiffness_matrix.shape)
-                self.rhs = sps.coo_matrix((self.displacement_value, (self.dof, self.dof)), shape=self.stiffness_matrix.shape)
+                self.rhs += sps.coo_matrix((self.displacement_value, (self.dof, self.colomns)), shape=self.rhs.shape)
 
+    def apply_rotation_boundary_condition(self):
+        for bc in mesh.rotation_boundary_condition:
+            for node in mesh.node_set[bc.node_set]:
+                dof = [3, 4, 5]
+                self.dof = [i + node * 6 for i in dof]
+                self.colomns = [0 for i in dof]
+                self.penalty = [1e20, 1e20, 1e20]
+                self.rotation_value = [bc.rot_x, bc.rot_y, bc.rot_z]
+                self.stiffness_matrix += sps.coo_matrix((self.penalty, (self.dof, self.dof)), shape=self.stiffness_matrix.shape)
+                self.rhs += sps.coo_matrix((self.rotation_value, (self.dof, self.colomns)), shape=self.rhs.shape)
+
+    def apply_force_boundary_condition(self):
+        for bc in mesh.force_boundary_condition:
+            for node in mesh.node_set[bc.node_set]:
+                dof = [0, 1, 2]
+                self.dof = [i + node * 6 for i in dof]
+                self.colomns = [0 for i in dof]
+                self.force_value = [bc.F_x, bc.F_y, bc.F_z]
+                self.rhs += sps.coo_matrix((self.force_value, (self.dof, self.colomns)), shape=self.rhs.shape)
+
+    def apply_moment_boundary_condition(self):
+        for bc in mesh.moment_boundary_condition:
+            for node in mesh.node_set[bc.node_set]:
+                dof = [0, 1, 2]
+                self.dof = [i + node * 6 for i in dof]
+                self.colomns = [0 for i in dof]
+                self.moment_value = [bc.M_x, bc.M_y, bc.M_z]
+                self.rhs += sps.coo_matrix((self.moment_value, (self.dof, self.colomns)), shape=self.rhs.shape)
+
+    def apply_auto_spc(self):
+        if self.mesh.AUTOSPC:
+            for diag in range(0, self.stiffness_matrix.shape[0]):
+                if self.stiffness_matrix[diag, diag] < 0.1:
+                    self.stiffness_matrix[diag, diag] = 1e20
 
 class MODEL(BOUNDARY_CONDITION):
     def __init__(self, mesh):
@@ -329,16 +372,22 @@ for el in mesh.element:
     element = ELEMENT(node, element_type, property_list)
 
     fea.add_matrix(element.stiffness_matrix, element.nodal_degree_of_freedom)
-    fea.add_rhs([100], [5])
 
     np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
     output.write('\n')
 
 fea.apply_displacement_boundary_condition()
+fea.apply_rotation_boundary_condition()
+fea.apply_force_boundary_condition()
+fea.apply_auto_spc()
 np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
 output.close()
 
-# fea.solve()
+# print fea.stiffness_matrix
+# print fea.rhs.todense()
+
+fea.solve()
+print fea.solution
 
 
 class vehicle():
