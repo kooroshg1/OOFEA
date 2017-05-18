@@ -1,91 +1,13 @@
+# Add src to path
+import sys
+sys.path.insert(0, 'src/mesh')
+sys.path.insert(0, 'src/base')
+import MESH
+
+
 import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg as spsol
-
-class DOMAIN():
-    def __init__(self, input_file_path):
-        self.input_file_path = input_file_path
-        self.read_mesh()
-
-    def read_mesh(self):
-        self.dimension = 6
-        with open(self.input_file_path, 'r') as input_file:
-            self.node = dict()
-            self.element = dict()
-            self.property = dict()
-            self.material = dict()
-            self.displacement_boundary_condition = []
-            self.rotation_boundary_condition = []
-            self.force_boundary_condition = []
-            self.moment_boundary_condition = []
-            self.node_set = dict()
-            self.element_set = dict()
-            for line in input_file:
-                if line[0:4] == 'NODE':
-                    line_split = line.split(',')
-                    self.node[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        self.node[int(line_split[1])].append(float(line_split_element))
-                elif line[0:7] == 'ELEMENT':
-                    line_split = line.split(',')
-                    self.element[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        self.element[int(line_split[1])].append(int(line_split_element))
-                elif line[0:4] == 'NSET':
-                    line_split = line.split(',')
-                    self.node_set[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        self.node_set[int(line_split[1])].append(int(line_split_element))
-                elif line[0:4] == 'ELSET':
-                    line_split = line.split(',')
-                    self.element_set[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        self.element_set[int(line_split[1])].append(int(line_split_element))
-                elif line[0:8] == 'PROPERTY':
-                    line_split = line.split(',')
-                    self.property[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        try:
-                            self.property[int(line_split[1])].append(float(line_split_element))
-                        except ValueError:
-                            self.property[int(line_split[1])].append(line_split_element)
-                elif line[0:8] == 'MATERIAL':
-                    line_split = line.split(',')
-                    self.material[int(line_split[1])] = []
-                    for line_split_element in line_split[2:]:
-                        self.material[int(line_split[1])].append(float(line_split_element))
-                elif line[0:12] == 'DISPLACEMENT':
-                    line_split = line.split(',')
-                    self.displacement_boundary_condition.append(BOUNDARY_CONDITION())
-                    self.displacement_boundary_condition[-1].add_displacement_boundary_condition(int(line_split[1]), float(line_split[2]), float(line_split[3]), float(line_split[4]))
-                elif line[0:8] == 'ROTATION':
-                    line_split = line.split(',')
-                    self.rotation_boundary_condition.append(BOUNDARY_CONDITION())
-                    self.rotation_boundary_condition[-1].add_rotation_boundary_condition(int(line_split[1]),
-                                                                                         float(line_split[2]),
-                                                                                         float(line_split[3]),
-                                                                                         float(line_split[4]))
-                elif line[0:5] == 'FORCE':
-                    line_split = line.split(',')
-                    self.force_boundary_condition.append(BOUNDARY_CONDITION())
-                    self.force_boundary_condition[-1].add_force_boundary_condition(int(line_split[1]),
-                                                                                   float(line_split[2]),
-                                                                                   float(line_split[3]),
-                                                                                   float(line_split[4]))
-                elif line[0:6] == 'MOMENT':
-                    line_split = line.split(',')
-                    self.moment_boundary_condition.append(BOUNDARY_CONDITION())
-                    self.moment_boundary_condition[-1].add_moment_boundary_condition(int(line_split[1]),
-                                                                                     float(line_split[2]),
-                                                                                     float(line_split[3]),
-                                                                                     float(line_split[4]))
-
-                elif line[0:7] == 'AUTOSPC':
-                    line_split = line.split(',')
-                    if line_split[1] == 'ON\n':
-                        self.AUTOSPC = True
-                    else:
-                        self.AUTOSPC = False
 
 class NODE_BASE():
     def get_nodal_degree_of_freedom(self):
@@ -335,78 +257,79 @@ class MODEL(BOUNDARY_CONDITION):
     def solve(self):
         self.solution = spsol.spsolve(self.stiffness_matrix, self.rhs)
 
+mesh = MESH.MESH()
+mesh.mesh_file_path = 'sample.inp'
+mesh.read_mesh()
 
-
-mesh = DOMAIN('sample.inp')
-fea = MODEL(mesh)
-# bc = BOUNDARY_CONDITION(mesh)
-# bc.apply_displacement_boundary_condition()
+# fea = MODEL(mesh)
+# # bc = BOUNDARY_CONDITION(mesh)
+# # bc.apply_displacement_boundary_condition()
+# # fea.apply_displacement_boundary_condition()
+#
+# output = open('matrix.txt', 'w')
+# for el in mesh.element:
+#     property_id = mesh.element[el][0]
+#     material_id = mesh.property[property_id][1]
+#     element_type = mesh.property[mesh.element[el][0]][0]
+#
+#     node = dict()
+#     property_list = dict()
+#
+#     for nd in mesh.element[el][1:]:
+#         node[nd] = mesh.node[nd]
+#
+#     if element_type == 'TRUSS':
+#         property_list['YOUNG'] = mesh.material[material_id][0]
+#         property_list['DENSITY'] = mesh.material[material_id][1]
+#         property_list['AREA'] = mesh.property[property_id][2]
+#     elif element_type == 'BEAM':
+#         property_list['YOUNG'] = mesh.material[material_id][0]
+#         property_list['G'] = mesh.material[material_id][1]
+#         property_list['DENSITY'] = mesh.material[material_id][2]
+#         property_list['AREA'] = mesh.property[property_id][2]
+#         property_list['J'] = mesh.property[property_id][3]
+#         property_list['Ix'] = mesh.property[property_id][4]
+#         property_list['Iy'] = mesh.property[property_id][5]
+#         property_list['Iz'] = mesh.property[property_id][6]
+#
+#     element = ELEMENT(node, element_type, property_list)
+#
+#     fea.add_matrix(element.stiffness_matrix, element.nodal_degree_of_freedom)
+#
+#     np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
+#     output.write('\n')
+#
 # fea.apply_displacement_boundary_condition()
-
-output = open('matrix.txt', 'w')
-for el in mesh.element:
-    property_id = mesh.element[el][0]
-    material_id = mesh.property[property_id][1]
-    element_type = mesh.property[mesh.element[el][0]][0]
-
-    node = dict()
-    property_list = dict()
-
-    for nd in mesh.element[el][1:]:
-        node[nd] = mesh.node[nd]
-
-    if element_type == 'TRUSS':
-        property_list['YOUNG'] = mesh.material[material_id][0]
-        property_list['DENSITY'] = mesh.material[material_id][1]
-        property_list['AREA'] = mesh.property[property_id][2]
-    elif element_type == 'BEAM':
-        property_list['YOUNG'] = mesh.material[material_id][0]
-        property_list['G'] = mesh.material[material_id][1]
-        property_list['DENSITY'] = mesh.material[material_id][2]
-        property_list['AREA'] = mesh.property[property_id][2]
-        property_list['J'] = mesh.property[property_id][3]
-        property_list['Ix'] = mesh.property[property_id][4]
-        property_list['Iy'] = mesh.property[property_id][5]
-        property_list['Iz'] = mesh.property[property_id][6]
-
-    element = ELEMENT(node, element_type, property_list)
-
-    fea.add_matrix(element.stiffness_matrix, element.nodal_degree_of_freedom)
-
-    np.savetxt(output, element.stiffness_matrix, fmt='%-12.4E')
-    output.write('\n')
-
-fea.apply_displacement_boundary_condition()
-fea.apply_rotation_boundary_condition()
-fea.apply_force_boundary_condition()
-fea.apply_auto_spc()
-np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
-output.close()
-
-# print fea.stiffness_matrix
-# print fea.rhs.todense()
-
-fea.solve()
-print fea.solution
-
-
-class vehicle():
-    def __init__(self):
-        self.value = None
-        self.is_second = None
-        self.sold = None
-
-    def mark_as_sold(self):
-        self.sold = True
-
-    def is_sold(self):
-        print self.sold
-
-    def get_value(self):
-        print self.value
-
-class car(vehicle):
-    def __init__(self, value, is_second, sold):
-        self.value = value
-        self.is_second = is_second
-        self.sold = sold
+# fea.apply_rotation_boundary_condition()
+# fea.apply_force_boundary_condition()
+# fea.apply_auto_spc()
+# np.savetxt(output, fea.stiffness_matrix.todense(), fmt='%-12.4E')
+# output.close()
+#
+# # print fea.stiffness_matrix
+# # print fea.rhs.todense()
+#
+# fea.solve()
+# print fea.solution
+#
+#
+# class vehicle():
+#     def __init__(self):
+#         self.value = None
+#         self.is_second = None
+#         self.sold = None
+#
+#     def mark_as_sold(self):
+#         self.sold = True
+#
+#     def is_sold(self):
+#         print self.sold
+#
+#     def get_value(self):
+#         print self.value
+#
+# class car(vehicle):
+#     def __init__(self, value, is_second, sold):
+#         self.value = value
+#         self.is_second = is_second
+#         self.sold = sold

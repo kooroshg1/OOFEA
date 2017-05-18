@@ -1,42 +1,25 @@
-import numpy as np
+from ELEMENT import *
+from NODE import *
 
-class NODE():
-    def __init__(self, info=None):
-        self.id = int(info[1])
-        self.x = float(info[2])
-        self.y = float(info[3])
-        self.z = float(info[4])
-        self.dof = None
-        self.get_dof()
-
-    def get_dof(self):
-        self.dof = [0, 1, 2, 3, 4, 5]
-        self.dof = [i + self.id * 6 for i in self.dof]
-
-
-class ELEMENT():
-    def __init__(self, info=None):
-        self.id = int(info[1])
-        self.property = int(info[2])
-        self.node = []
-        for node in info[3:]:
-            self.node.append(int(node))
 
 class PROPERTY():
-    def __init__(self, info=None):
-        self.id = int(info[1])
-        self.type = info[2]
-        self.prop = [float(prop) for prop in info[3:]]
+    def __init__(self):
+        self.type = None
+        self.material_id = None
+        self.gprop = None
+
 
 class MATERIAL():
     def __init__(self, info=None):
         self.id = int(info[1])
         self.prop = [float(prop) for prop in info[2:]]
 
+
 class BOUNDARY_CONDITION():
     def __init__(self):
         self.type = None
         self.nset = None
+
 
 class ANALYSIS_OPTION():
     def __init__(self):
@@ -47,7 +30,7 @@ class MESH(ELEMENT):
     def __init__(self):
         print 'Initializing mesh ..'
         self.element = []
-        self.node = []
+        self.node = dict()
         self.boundary_condition = []
         self.analysis_option = []
         self.property = dict()
@@ -61,13 +44,19 @@ class MESH(ELEMENT):
                              'AUTOSPC': self.auto_single_point_constraint}
 
     def add_node(self, line):
-        self.node.append(NODE(info=line))
+        self.node[int(line[1])] = NODE()
+        self.node[int(line[1])].x = float(line[2])
+        self.node[int(line[1])].y = float(line[2])
+        self.node[int(line[1])].z = float(line[2])
 
     def add_element(self, line):
         self.element.append(ELEMENT(info=line))
 
     def add_property(self, line):
-        self.property[int(line[1])] = PROPERTY(info=line)
+        self.property[int(line[1])] = PROPERTY()
+        self.property[int(line[1])].type = line[2]
+        self.property[int(line[1])].material_id = int(line[3])
+        self.property[int(line[1])].gprop = [float(i) for i in line[4:]]
 
     def add_material(self, line):
         self.material[int(line[1])] = MATERIAL(info=line)
@@ -82,7 +71,6 @@ class MESH(ELEMENT):
         self.analysis_option.append(ANALYSIS_OPTION())
         self.analysis_option[-1].type = line[0]
         self.analysis_option[-1].value = line[1]
-
 
     def read_mesh(self):
         with open(self.mesh_file_path) as inputfile:
@@ -100,27 +88,9 @@ class MESH(ELEMENT):
                     continue
                 except TypeError:
                     continue
+        self.assemble_mesh()
 
-mesh = MESH()
-mesh.mesh_file_path = 'sample.inp'
-mesh.read_mesh()
-
-# for option in mesh.analysis_option:
-#     print option.type, option.value
-
-# for bc in mesh.boundary_condition:
-#     print bc.type, bc.nset, bc.value
-
-# for node in mesh.node:
-#     print node.id, node.x, node.y, node.z, node.dof
-
-# for element in mesh.element:
-#     print element.id, element.property, element.node
-
-# for property in mesh.property:
-#     print property.id, property.type, property.prop
-
-
-# for node in mesh.node:
-#     print node.id, node.x, node.y, node.z, node.dof
-# node = globals()['NODE'](1)
+    def assemble_mesh(self):
+        for element in self.element:
+            print self.node
+            # print self.property[element.property].type
