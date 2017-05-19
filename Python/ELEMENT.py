@@ -9,8 +9,8 @@ class ELEMENT(NODE):
         self.id = None
         self.node = []
         self.type = None
-        self.geometry = None
-        self.material = None
+        self.geometry = dict()
+        self.material = dict()
         self.stiffness_matrix = None
 
     def attach_nodes(self, nodes):
@@ -39,10 +39,23 @@ class ELEMENT(NODE):
             beam = BEAM(self)
             beam.initialize()
 
-    # def get_stiffness_matrix(self):
-    #     if self.type == 'TRUSS':
-    #         truss = TRUSS(self)
-    #         truss.get_stiffness_matrix()
-    #     elif self.type == 'BEAM':
-    #         beam = BEAM(self)
-    #         beam.get_stiffness_matrix()
+    def calculate_transformation_matrix(self):
+        # Source: https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+        self.get_length()
+        orientation = np.array([self.node[-1].x - self.node[0].x,
+                                self.node[-1].y - self.node[0].y,
+                                self.node[-1].z - self.node[0].z]) / self.length
+        xorientation = np.array([1, 0, 0])
+        v = np.cross(orientation, xorientation)
+        s = np.linalg.norm(v)
+        c = np.dot(orientation, xorientation)
+        vx = np.matrix([[0., -v[2], v[1]],
+                        [v[2], 0., -v[0]],
+                        [-v[1], v[0], 0.]])
+        if c == -1:
+            self.transformation_matrix = np.matrix([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+        else:
+            self.transformation_matrix = np.eye(3) + vx + vx ** 2 * 1. / (1. + c)
+
+        self.transformation_matrix = np.kron(np.eye(4, 4), self.transformation_matrix)
+
