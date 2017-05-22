@@ -61,4 +61,4 @@ class BEAM():
 
         self.stiffness_matrix = self.stiffness_matrix + self.stiffness_matrix.T - np.diag(self.stiffness_matrix.diagonal())
 
-        self.element.stiffness_matrix = self.element.transformation_matrix * self.stiffness_matrix
+        self.element.matrix['stiffness'] = self.element.matrix['transformation'] * self.stiffness_matrix

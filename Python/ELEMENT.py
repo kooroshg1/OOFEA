@@ -11,7 +11,7 @@ class ELEMENT(NODE):
         self.type = None
         self.geometry = dict()
         self.material = dict()
-        self.stiffness_matrix = None
+        self.matrix = dict()
 
     def attach_nodes(self, nodes):
         try:
@@ -57,5 +57,5 @@ class ELEMENT(NODE):
         else:
             self.transformation_matrix = np.eye(3) + vx + vx ** 2 * 1. / (1. + c)
 
-        self.transformation_matrix = np.kron(np.eye(4, 4), self.transformation_matrix)
+        self.matrix['transformation'] = np.kron(np.eye(4, 4), self.transformation_matrix)
 
