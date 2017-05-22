@@ -38,17 +38,10 @@ system.set_matrix(systemMatrixName='stiffness', elementMatrixName='stiffness')
 # np.savetxt('test.txt', system.matrix['stiffness'].todense(), fmt='%12.4E')
 
 load = LOAD()
-load.add_case('force')
-load.set_case('force', [18], [1000])
+load.nodes = [0, 1]
+load.magnitude = [100, 0, 0, 0, 0, 0]
+load.initialize()
+print load.dof
+print load.value
 
-displacement = DISPLACEMENT()
-displacement.add_case('root')
-displacement.set_case('root', [0, 1, 2, 3, 4, 5], [0, 0, 0, 0, 0, 0])
-
-bc = [load, displacement]
-
-system.add_boundary_condition(bc, 'rhs')
-
-print system.vector['rhs']
-
-# np.savetxt('test.txt', element.stiffness_matrix, fmt='%12.4E')
+np.savetxt('test.txt', system.matrix['stiffness'].todense(), fmt='%12.4E')

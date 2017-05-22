@@ -14,8 +14,20 @@ class BASE:
 class LOAD(BASE):
     def __init__(self):
         self.type = 'load'
-        self.case = dict()
+        self.nodes = []
+        self.nset = None
+        self.magnitude = []
+        self.value = []
+        self.dof = []
         return None
+
+    def initialize(self):
+        dof = [0, 1, 2, 3, 4, 5]
+        for node in self.nodes:
+            self.dof.extend([i + 6 * node for i in dof])
+            self.value.extend(self.magnitude)
+
+
 
 
 class DISPLACEMENT(BASE):
