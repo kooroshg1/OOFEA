@@ -20,6 +20,7 @@ element = []
 for i in range(0, len(grid) - 1):
     element.append(ELEMENT())
     nodes = [node[i], node[i + 1]]
+    element[-1].id = i + 1
     element[-1].attach_nodes(nodes)
     element[-1].type = 'BEAM'
     element[-1].geometry['A'] = 10.0
@@ -28,4 +29,6 @@ for i in range(0, len(grid) - 1):
     element[-1].initialize()
 
 system = LinearElasticity()
+system.add_matrix('stiffness')
+# system.add_elements(element)
 # np.savetxt('test.txt', element.stiffness_matrix, fmt='%12.4E')
