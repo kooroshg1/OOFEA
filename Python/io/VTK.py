@@ -47,7 +47,7 @@ DATASET UNSTRUCTURED_GRID\n"""
             output.write('POINTS {:<12d} FLOAT\n'.format(len(self.nodes)))
             for node in self.nodes:
                 output.write('{:<16.4E} {:<16.4E} {:<16.4E}\n'.format(node[0], node[1], node[2]))
-            print len(self.connectivity) + len(sum(self.connectivity, []))
+
             output.write('CELLS {:<16d} {:<16d}\n'.format(len(self.connectivity),
                                                           len(self.connectivity) + len(sum(self.connectivity, []))))
             for element in self.connectivity:

@@ -1,7 +1,6 @@
 import sys
 sys.path.insert(0, '../src')
 sys.path.insert(0, '../io')
-
 from NODE import NODE
 from ELEMENT import ELEMENT
 from SYSTEM import LinearElasticity
