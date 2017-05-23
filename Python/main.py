@@ -24,9 +24,9 @@ for i in range(0, len(grid) - 1):
     nodes = [node[i], node[i + 1]]
     element[-1].id = i + 1
     element[-1].attach_nodes(nodes)
-    element[-1].type = 'TRUSS'
+    element[-1].type = 'BEAM'
     element[-1].geometry['A'] = 1.0
-    element[-1].geometry.update({'J': 1e3, 'Ix': 0.0, 'Iy': 0.0, 'Iz': 4e3})
+    element[-1].geometry.update({'J': 1e3, 'Ix': 1.0, 'Iy': 1.0, 'Iz': 1.0})
     element[-1].material = {'E': 1, 'rho': 1000, 'G': 1e9}
     element[-1].initialize()
 
@@ -39,12 +39,12 @@ system.set_matrix(systemMatrixName='stiffness', elementMatrixName='stiffness')
 # np.savetxt('test.txt', system.matrix['stiffness'].todense(), fmt='%12.4E')
 
 boundary_condition = []
-boundary_condition.append(FORCE(node=1, magnitude=[100, 0, 0]))
-boundary_condition.append(MOMENT(node=1, magnitude=[0, 0, 200]))
+boundary_condition.append(FORCE(node=1, magnitude=[0, 1, 0]))
+boundary_condition.append(MOMENT(node=1, magnitude=[0, 0, 0]))
 boundary_condition.append(TRANSLATION(node=0, magnitude=[0, 0, 0]))
-boundary_condition.append(TRANSLATION(node=1, magnitude=[None, 0, 0]))
+boundary_condition.append(TRANSLATION(node=1, magnitude=[None, None, None]))
 boundary_condition.append(ROTATION(node=0, magnitude=[0, 0, 0]))
-boundary_condition.append(ROTATION(node=1, magnitude=[0, 0, 0]))
+boundary_condition.append(ROTATION(node=1, magnitude=[None, None, None]))
 
 system.attach_boundary_condition(boundary_condition)
 system.apply_boundary_condition(systemVectorName='rhs', systemMatrixName='stiffness')
