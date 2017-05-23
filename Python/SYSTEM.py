@@ -1,21 +1,23 @@
 import scipy.sparse as sps
-from sets import Set
+import scipy.sparse.linalg as spsolve
+from BoundaryCondtion import BoundaryCondition
 
-class LinearElasticity():
+class LinearElasticity(BoundaryCondition):
     def __init__(self):
         self.matrix = dict()
         self.vector = dict()
         self.elements = None
+        self.boundary_condition = []
         return None
 
     def add_elements(self, elements):
         self.elements = elements
 
     def add_matrix(self, matrixName):
-        self.matrix[matrixName] = sps.coo_matrix((24, 24))
+        self.matrix[matrixName] = sps.coo_matrix((12, 12))
 
     def add_vector(self, vectorName):
-        self.vector[vectorName] = sps.coo_matrix((24, 1))
+        self.vector[vectorName] = sps.coo_matrix((12, 1))
 
     def set_matrix(self, systemMatrixName, elementMatrixName):
         for element in self.elements:
@@ -34,16 +36,5 @@ class LinearElasticity():
         columns = [0 for x in dof]
         self.vector[vectorName] += sps.coo_matrix((value, (dof, columns)), shape=self.vector[vectorName].shape)
 
-    def add_boundary_condition(self, boundary_condition, vectorName, matrixName):
-        for bc in boundary_condition:
-            if bc.type == 'load':
-                for case in bc.case:
-                    dof = bc.case[case][0]
-                    value = bc.case[case][1]
-                    self.set_vector(vectorName=vectorName, dof=dof, value=value)
-
-            if bc.type == 'displacement':
-                for case in bc.case:
-                    dof = bc.case[case][0]
-                    matrix = [1e20 for x in dof]
-                    self.matrix[matrixName] = sps.coo_matrix((matrix, (dof, dof)), shape=self.matrix[matrixName].shape)
+    def solve(self, systemMatrixName, systemVectorName):
+        return spsolve.spsolve(self.matrix[systemMatrixName], self.vector[systemVectorName])

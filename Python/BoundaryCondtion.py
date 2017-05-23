@@ -1,37 +1,26 @@
-class BASE:
-    def __init__(self):
-        self.type = None
-        return None
+import scipy.sparse as sps
 
-    def add_case(self, caseName):
-        self.case[caseName] = []
+class BoundaryCondition:
+    def attach_boundary_condition(self, boundary_condition):
+        try:
+            self.boundary_condition.extend(boundary_condition)
+        except TypeError:
+            self.boundary_condition.append(boundary_condition)
 
-    def set_case(self, caseName, value, dof):
-        self.case[caseName].append(value)
-        self.case[caseName].append(dof)
+    def apply_boundary_condition(self, systemVectorName, systemMatrixName):
+        for bc in self.boundary_condition:
+            if (bc.type == 'force') or (bc.type == 'moment'):
+                self.set_vector(vectorName=systemVectorName, dof=bc.dof, value=bc.magnitude)
+            elif (bc.type == 'displacement') or (bc.type == 'rotation'):
+                matrix = [1e20 for x in bc.magnitude if x != None]
+                el = 0
+                dof = []
+                magnitude = []
+                for i in bc.dof:
+                    if bc.magnitude[el] != None:
+                        dof.append(bc.dof[el])
+                        magnitude.append(bc.magnitude[el])
+                    el += 1
+                self.matrix[systemMatrixName] += sps.coo_matrix((matrix, (dof, dof)), shape=self.matrix[systemMatrixName].shape)
+                self.set_vector(vectorName=systemVectorName, dof=dof, value=magnitude)
 
-
-class LOAD(BASE):
-    def __init__(self):
-        self.type = 'load'
-        self.nodes = []
-        self.nset = None
-        self.magnitude = []
-        self.value = []
-        self.dof = []
-        return None
-
-    def initialize(self):
-        dof = [0, 1, 2, 3, 4, 5]
-        for node in self.nodes:
-            self.dof.extend([i + 6 * node for i in dof])
-            self.value.extend(self.magnitude)
-
-
-
-
-class DISPLACEMENT(BASE):
-    def __init__(self):
-        self.type = 'displacement'
-        self.case = dict()
-        return None
