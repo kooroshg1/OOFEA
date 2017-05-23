@@ -4,6 +4,7 @@ from BoundaryCondtion import BoundaryCondition
 
 class LinearElasticity(BoundaryCondition):
     def __init__(self):
+        self.number_of_dof = None
         self.matrix = dict()
         self.vector = dict()
         self.elements = None
@@ -14,10 +15,10 @@ class LinearElasticity(BoundaryCondition):
         self.elements = elements
 
     def add_matrix(self, matrixName):
-        self.matrix[matrixName] = sps.coo_matrix((12, 12))
+        self.matrix[matrixName] = sps.coo_matrix((self.number_of_dof, self.number_of_dof))
 
     def add_vector(self, vectorName):
-        self.vector[vectorName] = sps.coo_matrix((12, 1))
+        self.vector[vectorName] = sps.coo_matrix((self.number_of_dof, 1))
 
     def set_matrix(self, systemMatrixName, elementMatrixName):
         for element in self.elements:
@@ -37,4 +38,4 @@ class LinearElasticity(BoundaryCondition):
         self.vector[vectorName] += sps.coo_matrix((value, (dof, columns)), shape=self.vector[vectorName].shape)
 
     def solve(self, systemMatrixName, systemVectorName):
-        return spsolve.spsolve(self.matrix[systemMatrixName], self.vector[systemVectorName])
+        self.vector['solution'] = spsolve.spsolve(self.matrix[systemMatrixName], self.vector[systemVectorName])

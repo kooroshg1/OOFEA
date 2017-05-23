@@ -4,9 +4,6 @@ from SYSTEM import LinearElasticity
 from LOAD import FORCE, MOMENT
 from DISPLACEMENT import TRANSLATION, ROTATION
 
-import sys
-import numpy as np
-
 grid = [[0, 0, 0], [1, 0, 0]]
 
 node = []
@@ -35,8 +32,6 @@ system.add_elements(element)
 system.add_matrix('stiffness')
 system.add_vector('rhs')
 system.set_matrix(systemMatrixName='stiffness', elementMatrixName='stiffness')
-# print system.matrix['stiffness']
-# np.savetxt('test.txt', system.matrix['stiffness'].todense(), fmt='%12.4E')
 
 boundary_condition = []
 boundary_condition.append(FORCE(node=1, magnitude=[0, 1, 0]))
